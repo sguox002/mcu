@@ -1,26 +1,35 @@
-SPI full duplex IT/DMA using LL driver
+### SPI full duplex IT/DMA using LL driver
 
-Application:
+#### Application:
 CW sampling at 80KHz to read two 16 bit data from two CW A/D per sample.
 The A/D needs to get a readout command from master so it can send out the a/d value.
 The A/D is connected to MCU SPI1.
 
-SPI full duplex needs 4 lines:
-NSS for frame
+#### SPI full duplex configuration:
+spi full duplex needs 4 lines:
+NSS for frame (software management)
 SCK for clock
 MOSI for data output
 MISO for data input
 
 full duplex: write occurs in MOSI and read occurs on MISO. each clock will latch a bit.
+HAL_TransmitReceive
+HAL_TransmitReceive_IT
+HAL_TransmitReceive_DMA
+and callback shall be:
+
+void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
 
 clock poloarity and phase:
 00: clock idle at low and sampling at rising edge
 11: clock idle at high and sampling at falling edge
+the spi peripheral AD requires 00 configuration.
 
 Cubemx use edge 1 for rising edge and 2 for falling edge.
 
 data width:
-4/8/16 bit.
+4/8/16 bit. for more than 16 bits, we need use software managed frame signal.
+
 If configured as 16 bit, a frame will has 16 clocks.
 At the end of 16 clocks, the read data is updated in the data register.
 
@@ -30,7 +39,7 @@ when rx fifo has >=1bytes received, RXNE bit will be set.
 
 when data width is 16 bits, fifo threshold is default 2 bytes.
 
-HAL vs LL.
+#### HAL vs LL.
 HAL is not built on LL. HAL generally builds a handle with configuration and setting in its handle structure. HAL is less efficient.
 LL uses macros to set/get registers and is more efficient.
 HAL is more convenient.
@@ -38,13 +47,13 @@ HAL and LL can be mixed.
 HAL already defined interrupt callbacks but LL not, so user has to define the ISR and callback themselves.
 
 How to mix LL and HAL for the same peripheral:
-using cubemx generate HAL driver for spi. save the code for spi_init and Spi_MSP_init
-using cubemx generate LL driver.
-Then combine the two codes.
-In init, you can first init LL and then HAL, note some values in LL would be overwritten, if the configuration is different.
-So when we use LL, some relevent parameters shall be set again.
+- using cubemx generate HAL driver for spi. save the code for spi_init and Spi_MSP_init
+- using cubemx generate LL driver.
+- Then combine the two codes.
+	- In init, you can first init LL and then HAL, note some values in LL would be overwritten, if the configuration is different.
+	- So when we use LL, some relevent parameters shall be set again.
 
-IT vs DMA
+#### IT vs DMA
 when using interrupt, these parameters are relevant:
 - data width
 - fifo threshold
@@ -125,6 +134,7 @@ void  SPI1_Tx_Callback(void)
 
 ```
 
+#### DMA
 Interrupt still needs CPU to read data register to memory, which uses the bus and there exists idle time before transmission and after receiving.
 This is due to LL_SPI_TransmitData16 and LL_SPI_ReceiveData16.
 
@@ -263,9 +273,9 @@ void DMA1_TransmitComplete_Callback(void)
 }
 ```
 
-using HAL, we can only reach 30KHz sampling frequency.
-using LL with IT, we can reach 80KHz barely.
-using LL with DMA, we can reach about 120KHz.
+- using HAL, we can only reach 30KHz sampling frequency.
+- using LL with IT, we can reach 80KHz barely.
+- using LL with DMA, we can reach about 120KHz.
 
 
 
